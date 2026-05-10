@@ -9,24 +9,24 @@
 ### Ship your SaaS in days, not months.
 
 > [!IMPORTANT]
-> 🚀 **One-click demo** — No account needed. Click "Live Demo" on the homepage to explore instantly.
+> 🚀 **One-click demo** : No account needed. Click "Live Demo" on the homepage to explore instantly.
 > Or use: `demo@launchfast.com` / `demo123456`
-> Live Demo URL: [https://launchfast.vercel.app](https://launchfast.vercel.app)
+> Live Demo URL: [https://launchfast-saas.vercel.app](https://launchfast-saas.vercel.app)
 
 ![LaunchFast Dashboard](./public/screenshot.png)
 *Note: Dashboard preview showcasing stats, activity feed, and responsive sidebar.*
 
-## Features
-- ✅ **Authentication** — signup, login, email verification, password reset
-- ✅ **Supabase integration** — PostgreSQL database with Row Level Security
-- ✅ **Stripe subscriptions** — checkout, webhooks, billing portal
-- ✅ **Protected routes** — middleware-based auth protection
-- ✅ **Dashboard** — stats, activity feed, upgrade prompts
-- ✅ **User settings** — profile update, avatar upload, password change
-- ✅ **Billing page** — subscription management, payment history
-- ✅ **Dark mode** — system preference + manual toggle
-- ✅ **Fully responsive** — mobile, tablet, desktop
-- ✅ **One-click demo** — instant access without registration
+## Features: 
+- ✅ **Authentication** : signup, login, email verification, password reset
+- ✅ **Supabase integration** : PostgreSQL database with Row Level Security
+- ✅ **Stripe subscriptions** : checkout, webhooks, billing portal
+- ✅ **Protected routes** : middleware-based auth protection
+- ✅ **Dashboard** : stats, activity feed, upgrade prompts
+- ✅ **User settings** : profile update, avatar upload, password change
+- ✅ **Billing page** : subscription management, payment history
+- ✅ **Dark mode** : system preference + manual toggle
+- ✅ **Fully responsive** : mobile, tablet, desktop
+- ✅ **One-click demo** : instant access without registration
 - 🔜 Google OAuth
 - 🔜 Team collaboration
 - 🔜 Usage analytics
@@ -135,7 +135,7 @@ lib/
 # Start development server
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [https://launchfast-saas.vercel.app](https://launchfast-saas.vercel.app) in your browser.
 
 ### Test Payments
 > [!TIP]

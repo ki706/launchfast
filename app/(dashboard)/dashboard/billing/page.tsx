@@ -2,6 +2,9 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { BillingClient } from "@/components/dashboard/BillingClient"
 
+export const dynamic = "force-dynamic"
+
+
 export default async function BillingPage({
   searchParams,
 }: {
@@ -12,7 +15,7 @@ export default async function BillingPage({
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("launchfast_profiles")
     .select("*")
     .eq("id", user.id)
     .single()
@@ -27,7 +30,7 @@ export default async function BillingPage({
         email: user.email,
         plan: profile?.plan || "free",
         subscription_status: profile?.subscription_status || null,
-        current_period_end: profile?.current_period_end || null,
+        subscription_period_end: profile?.subscription_period_end || null,
         stripe_subscription_id: profile?.stripe_subscription_id || null,
         stripe_customer_id: profile?.stripe_customer_id || null,
       }}

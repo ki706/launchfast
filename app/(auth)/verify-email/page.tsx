@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Mail, RefreshCw, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
+  const searchParams = useSearchParams()
+  const emailParam = searchParams.get("email")
   const [countdown, setCountdown] = useState(0)
   const [sent, setSent] = useState(false)
 
@@ -19,12 +22,20 @@ export default function VerifyEmailPage() {
 
   const handleResend = async () => {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user?.email) {
-      await supabase.auth.resend({ type: "signup", email: user.email })
+    let email = emailParam
+
+    if (!email) {
+      const { data: { user } } = await supabase.auth.getUser()
+      email = user?.email || null
     }
-    setSent(true)
-    setCountdown(60)
+
+    if (email) {
+      await supabase.auth.resend({ type: "signup", email })
+      setSent(true)
+      setCountdown(60)
+    } else {
+      window.location.href = "/login"
+    }
   }
 
   return (
@@ -74,3 +85,16 @@ export default function VerifyEmailPage() {
     </div>
   )
 }
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Zap className="w-8 h-8 text-blue-600 animate-pulse" />
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
+  )
+}
+

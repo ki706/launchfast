@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("launchfast_profiles")
     .select("*")
     .eq("id", user.id)
     .single()

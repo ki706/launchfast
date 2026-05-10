@@ -1,25 +1,27 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, Trash2, Eye, EyeOff } from "lucide-react"
+import { 
+  Loader2, 
+  Upload, 
+  Smartphone, 
+  Moon, 
+  Sun,
+  Lock,
+  User,
+  Palette
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Header } from "@/components/dashboard/Header"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { useTheme } from "next-themes"
+import { cn } from "@/lib/utils"
 
 interface SettingsClientProps {
   user: {
@@ -34,24 +36,32 @@ interface SettingsClientProps {
 export function SettingsClient({ user }: SettingsClientProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const { theme, setTheme } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [profileLoading, setProfileLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "")
   const [fullName, setFullName] = useState(user.full_name || "")
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" })
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
 
   const initials = (user.full_name || user.email || "U")
     .split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
 
   const isDemoUser = user.email === "demo@launchfast.com"
+
+  useEffect(() => {
+    // Check MFA status
+    const checkMFA = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (error) console.error("MFA check error:", error)
+      if (data?.currentLevel === 'aal2') setMfaEnabled(true)
+    }
+    checkMFA()
+  }, [])
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isDemoUser) return
@@ -60,44 +70,41 @@ export function SettingsClient({ user }: SettingsClientProps) {
     const supabase = createClient()
     const ext = file.name.split(".").pop()
     const path = `${user.id}/avatar.${ext}`
+    
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(path, file, { upsert: true })
+      
     if (uploadError) {
       toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" })
       return
     }
+    
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path)
-    await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id)
+    await supabase.from("launchfast_profiles").update({ avatar_url: publicUrl }).eq("id", user.id)
     setAvatarUrl(publicUrl)
-    toast({ title: "Avatar updated!", variant: "default" } as React.ComponentPropsWithoutRef<typeof import("@/components/ui/toast").Toast>)
+    toast({ title: "Avatar updated!", variant: "default" })
   }
 
   const handleProfileSave = async () => {
-    if (isDemoUser) {
-      toast({ title: "Demo Mode", description: "Sign up for a real account to save changes", variant: "destructive" })
-      return
-    }
+    if (isDemoUser) return
     setProfileLoading(true)
     const supabase = createClient()
     const { error } = await supabase
-      .from("profiles")
+      .from("launchfast_profiles")
       .update({ full_name: fullName, updated_at: new Date().toISOString() })
       .eq("id", user.id)
     setProfileLoading(false)
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     } else {
-      toast({ title: "Profile saved!", description: "Your changes have been saved.", variant: "default" } as React.ComponentPropsWithoutRef<typeof import("@/components/ui/toast").Toast>)
+      toast({ title: "Profile saved!", variant: "default" })
       router.refresh()
     }
   }
 
   const handlePasswordUpdate = async () => {
-    if (isDemoUser) {
-      toast({ title: "Demo Mode", description: "Password change is disabled for the demo account.", variant: "destructive" })
-      return
-    }
+    if (isDemoUser) return
     setPasswordError(null)
     if (passwords.newPass.length < 8) {
       setPasswordError("Password must be at least 8 characters.")
@@ -114,189 +121,185 @@ export function SettingsClient({ user }: SettingsClientProps) {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     } else {
-      toast({ title: "Password updated!", description: "Your password has been changed.", variant: "default" } as React.ComponentPropsWithoutRef<typeof import("@/components/ui/toast").Toast>)
+      toast({ title: "Password updated!", variant: "default" })
       setPasswords({ current: "", newPass: "", confirm: "" })
     }
   }
 
-  const handleDeleteAccount = async () => {
-    if (isDemoUser) return
-    setDeleteLoading(true)
-    const supabase = createClient()
-    const res = await fetch("/api/user/delete", { method: "DELETE" })
-    if (res.ok) {
-      await supabase.auth.signOut()
-      router.push("/")
-    } else {
-      setDeleteLoading(false)
-      toast({ title: "Error", description: "Failed to delete account.", variant: "destructive" })
-    }
-    setDeleteOpen(false)
-  }
-
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-background">
       <Header title="Settings" userName={user.full_name} />
-      <main className="flex-1 p-6 space-y-6 max-w-2xl">
-
-        {/* Profile */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Update your personal information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Avatar */}
-            <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16">
-                <AvatarImage src={avatarUrl} />
-                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-              </Avatar>
-              <div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => fileInputRef.current?.click()} 
-                  className="gap-2"
-                  disabled={isDemoUser}
-                >
-                  <Upload className="w-3.5 h-3.5" /> Upload photo
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG or GIF. Max 2MB.</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full name</Label>
-              <Input
-                id="fullName"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Your full name"
-                disabled={isDemoUser}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input id="email" value={user.email || ""} disabled className="opacity-60" />
-              <p className="text-xs text-muted-foreground">Contact support to change your email address.</p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Button 
-                onClick={handleProfileSave} 
-                disabled={profileLoading || isDemoUser} 
-                className="gap-2 w-fit"
-                title={isDemoUser ? "Sign up for a real account to save changes" : ""}
-              >
-                {profileLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : "Save changes"}
-              </Button>
-              {isDemoUser && (
-                <p className="text-xs text-amber-600 font-medium">
-                  Sign up for a real account to save changes
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Password */}
-        <Card className={isDemoUser ? "opacity-60" : ""}>
-          <CardHeader>
-            <CardTitle>Password</CardTitle>
-            <CardDescription>Change your account password</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { id: "current", label: "Current password", show: showCurrent, toggle: () => setShowCurrent(!showCurrent), value: passwords.current, key: "current" },
-              { id: "newPass", label: "New password", show: showNew, toggle: () => setShowNew(!showNew), value: passwords.newPass, key: "newPass" },
-              { id: "confirm", label: "Confirm new password", show: showConfirm, toggle: () => setShowConfirm(!showConfirm), value: passwords.confirm, key: "confirm" },
-            ].map(({ id, label, show, toggle, value, key }) => (
-              <div key={id} className="space-y-2">
-                <Label htmlFor={id}>{label}</Label>
-                <div className="relative">
-                  <Input
-                    id={id}
-                    type={show ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={value}
-                    onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })}
-                    className="pr-10"
-                    disabled={isDemoUser}
-                  />
-                  {!isDemoUser && (
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
-                      onClick={toggle}
-                    >
-                      {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  )}
+      <main className="flex-1 p-6 space-y-12 max-w-3xl mx-auto w-full">
+        
+        {/* Profile Section */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <User className="w-4 h-4" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">Personal Information</h3>
+          </div>
+          
+          <Card className="bg-card border-border shadow-none">
+            <CardContent className="pt-6 space-y-6">
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <Avatar className="w-20 h-20 border-2 border-border transition-opacity group-hover:opacity-80">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback className="text-xl bg-accent text-foreground">{initials}</AvatarFallback>
+                  </Avatar>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-full"
+                  >
+                    <Upload className="w-5 h-5 text-white" />
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-foreground">Profile Picture</h4>
+                  <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
                 </div>
               </div>
-            ))}
 
-            {passwordError && (
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
-                {passwordError}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Full name</Label>
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="bg-background border-border text-foreground h-10"
+                    disabled={isDemoUser}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Email address</Label>
+                  <Input id="email" value={user.email || ""} disabled className="bg-background border-border text-muted-foreground/50 h-10" />
+                </div>
               </div>
-            )}
 
-            <Button onClick={handlePasswordUpdate} disabled={passwordLoading || isDemoUser} className="gap-2">
-              {passwordLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</> : "Update password"}
-            </Button>
-            {isDemoUser && (
-              <p className="text-xs text-amber-600 font-medium mt-2">
-                Password change is disabled for demo user
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              <Button onClick={handleProfileSave} disabled={profileLoading || isDemoUser} className="bg-white text-black hover:bg-white/90 h-9 text-xs font-bold uppercase tracking-widest">
+                {profileLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
 
-        {/* Danger zone */}
-        <Card className="border-destructive/40">
-          <CardHeader>
-            <CardTitle className="text-destructive">Danger Zone</CardTitle>
-            <CardDescription>Permanently delete your account and all data</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger asChild>
-                <Button variant="destructive" className="gap-2" disabled={isDemoUser}>
-                  <Trash2 className="w-4 h-4" /> Delete account
+        {/* Security Section */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <Lock className="w-4 h-4" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">Security & Privacy</h3>
+          </div>
+
+          <div className="space-y-4">
+            {/* Password */}
+            <Card className="bg-card border-border shadow-none overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-sm font-bold text-foreground">Account Password</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">Update your login credentials.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">New Password</Label>
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={passwords.newPass}
+                      onChange={(e) => setPasswords({...passwords, newPass: e.target.value})}
+                      className="bg-background border-border" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Confirm Password</Label>
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={passwords.confirm}
+                      onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                      className="bg-background border-border" 
+                    />
+                  </div>
+                </div>
+                {passwordError && (
+                  <p className="text-xs text-red-500 font-medium">{passwordError}</p>
+                )}
+                <Button onClick={handlePasswordUpdate} disabled={passwordLoading || isDemoUser} variant="outline" className="h-9 text-xs font-bold uppercase tracking-widest border-border text-foreground">
+                  {passwordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Password"}
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete account?</DialogTitle>
-                  <DialogDescription>
-                    This will permanently delete your account and all associated data. This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-                  <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleteLoading}>
-                    {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yes, delete my account"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            {isDemoUser && (
-              <p className="text-xs text-amber-600 font-medium mt-4">
-                Account deletion is disabled for demo user
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+
+            {/* MFA */}
+            <Card className="bg-card border-border shadow-none">
+              <CardContent className="p-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                    <Smartphone className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">Two-Factor Authentication</h4>
+                    <p className="text-xs text-muted-foreground">Add an extra layer of security to your account.</p>
+                  </div>
+                </div>
+                <Button variant="outline" className="h-9 text-xs font-bold uppercase tracking-widest border-border text-foreground" asChild>
+                  <a href="#">{mfaEnabled ? "Configure" : "Enable"}</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* Appearance */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <Palette className="w-4 h-4" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">Interface Preferences</h3>
+          </div>
+          
+          <Card className="bg-card border-border shadow-none">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  {theme === 'dark' ? <Moon className="w-5 h-5 text-blue-500" /> : <Sun className="w-5 h-5 text-amber-500" />}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">Appearance Mode</h4>
+                  <p className="text-xs text-muted-foreground">Switch between light and dark themes.</p>
+                </div>
+              </div>
+              <div className="flex bg-background p-1 rounded-md border border-border">
+                <button 
+                  onClick={() => setTheme('light')}
+                  className={cn("px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all", theme === 'light' ? "bg-white text-black" : "text-muted-foreground/50 hover:text-muted-foreground")}
+                >
+                  Light
+                </button>
+                <button 
+                  onClick={() => setTheme('dark')}
+                  className={cn("px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all", theme === 'dark' ? "bg-white text-black" : "text-muted-foreground/50 hover:text-muted-foreground")}
+                >
+                  Dark
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Danger Zone */}
+        <section className="pt-8">
+          <Card className="bg-red-500/5 border-red-500/20 shadow-none">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-red-500">Delete Account</h4>
+                <p className="text-xs text-red-500/60">Permanently remove your account and all data.</p>
+              </div>
+              <Button variant="destructive" className="h-9 text-xs font-bold uppercase tracking-widest bg-red-600 hover:bg-red-500">
+                Delete Account
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
       </main>
     </div>
   )

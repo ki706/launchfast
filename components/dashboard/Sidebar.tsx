@@ -11,6 +11,9 @@ import {
   Zap,
   Menu,
   X,
+  Sparkles,
+  BarChart3,
+  Key,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -27,16 +30,29 @@ interface SidebarProps {
   }
 }
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+const navSections = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles, badge: "AI" },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/dashboard/settings", label: "Settings", icon: Settings },
+      { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+      { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
+    ],
+  },
 ]
 
 const planColors: Record<string, string> = {
-  free: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  pro: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  business: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  free: "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/50",
+  pro: "border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20",
+  business: "border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20",
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -61,66 +77,88 @@ export function Sidebar({ user }: SidebarProps) {
   }
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-card text-foreground">
       {/* Logo */}
-      <div className="p-6 border-b border-border">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
+      <div className="p-6">
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="w-8 h-8 bg-foreground rounded flex items-center justify-center transition-transform group-hover:scale-105">
+            <Zap className="w-4 h-4 text-background fill-background" />
           </div>
-          <span className="text-lg font-bold">LaunchFast</span>
+          <span className="text-lg font-bold tracking-tight">LaunchFast</span>
         </Link>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                active
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
+      <div className="flex-1 px-4 py-2 space-y-8 overflow-y-auto">
+        {navSections.map((section) => (
+          <div key={section.title} className="space-y-2">
+            <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {section.title}
+            </h3>
+            <nav className="space-y-1">
+              {section.items.map(({ href, label, icon: Icon, badge }) => {
+                const active = pathname === href
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200",
+                      active
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={cn("w-4 h-4 shrink-0", active ? "text-accent-foreground" : "text-muted-foreground")} />
+                      {label}
+                    </div>
+                    {badge && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-600/20 text-blue-400 border border-blue-500/20">
+                        {badge}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
 
       {/* User */}
-      <div className="p-4 border-t border-border space-y-3">
-        <div className="flex items-center gap-3 px-2">
-          <Avatar className="w-9 h-9">
+      <div className="p-4 border-t border-border bg-muted">
+        <div className="flex items-center gap-3 px-2 mb-4">
+          <Avatar className="w-8 h-8 rounded border border-border">
             <AvatarImage src={user.avatar_url || ""} alt={user.full_name || ""} />
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className="bg-accent text-foreground rounded text-xs">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.full_name || "User"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <p className="text-xs font-semibold truncate text-foreground">{user.full_name || "User"}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
           </div>
         </div>
-        <div className="px-2">
-          <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", planColors[plan])}>
-            {plan} plan
-          </span>
+        
+        <div className="flex flex-col gap-1">
+          <div className={cn(
+            "flex items-center justify-between px-3 py-1.5 rounded border text-[10px] font-bold uppercase tracking-wider mb-2",
+            planColors[plan]
+          )}>
+            <span>{plan} plan</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-[10px] font-bold uppercase tracking-widest text-[#888880] hover:text-red-400 hover:bg-red-900/10 gap-2 h-8"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign out
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground hover:text-destructive gap-2"
-          onClick={handleLogout}
-        >
-          <LogOut className="w-4 h-4" />
-          Sign out
-        </Button>
       </div>
     </div>
   )
@@ -128,19 +166,19 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card shrink-0 h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-60 border-r border-[rgba(255,255,255,0.06)] shrink-0 h-screen sticky top-0 bg-[#0A0A0A]">
         <SidebarContent />
       </aside>
 
       {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-card border-b border-border">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-[#0A0A0A] border-b border-[rgba(255,255,255,0.06)]">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
+          <div className="w-7 h-7 bg-[#F0EDE6] rounded flex items-center justify-center">
+            <Zap className="w-4 h-4 text-black fill-black" />
           </div>
-          <span className="font-bold text-base">LaunchFast</span>
+          <span className="font-bold text-sm tracking-tight text-[#F0EDE6]">LaunchFast</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
+        <Button variant="ghost" size="icon" className="text-[#F0EDE6]" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
       </div>
@@ -149,10 +187,10 @@ export function Sidebar({ user }: SidebarProps) {
       {mobileOpen && (
         <>
           <div
-            className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="lg:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="lg:hidden fixed top-0 left-0 z-50 flex flex-col w-72 h-full bg-card border-r border-border shadow-xl">
+          <aside className="lg:hidden fixed top-0 left-0 z-50 flex flex-col w-64 h-full border-r border-[rgba(255,255,255,0.06)]">
             <SidebarContent />
           </aside>
         </>

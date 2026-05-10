@@ -4,8 +4,9 @@ import { headers } from "next/headers"
 import { stripe } from "@/lib/stripe"
 import { createServerClient } from "@supabase/ssr"
 import Stripe from "stripe"
+import { PlanType } from "@/lib/stripe/plans"
 
-const getPlanFromPriceId = (priceId: string): string => {
+const getPlanFromPriceId = (priceId: string): PlanType => {
   if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) return "pro"
   if (priceId === process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID) return "business"
   return "free"
@@ -27,75 +28,80 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.error("Webhook signature error:", err.message)
-    } else {
-      console.error("Webhook signature error:", err)
-    }
+  } catch (err: any) {
+    console.error("Webhook signature error:", err.message)
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
   const supabase = createAdminSupabase()
+
+  // 1. Idempotency check
+  const { data: existingEvent } = await supabase
+    .from("launchfast_webhook_events")
+    .select("id, processed")
+    .eq("stripe_event_id", event.id)
+    .single()
+
+  if (existingEvent?.processed) {
+    return NextResponse.json({ received: true, alreadyProcessed: true })
+  }
+
+  // Record event if not exists
+  if (!existingEvent) {
+    await supabase.from("launchfast_webhook_events").insert({
+      stripe_event_id: event.id,
+      type: event.type,
+    })
+  }
 
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.metadata?.userId
-        if (!userId) break
+        const priceId = session.metadata?.priceId
+        if (!userId || !priceId) break
 
-        const subscription = (await stripe.subscriptions.retrieve(session.subscription as string)) as any
-        const priceId = subscription.items.data[0].price.id
         const plan = getPlanFromPriceId(priceId)
+        
+        // If it's a subscription, get the end date
+        let subscriptionPeriodEnd = null
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          subscriptionPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString()
+        }
 
-        await supabase.from("profiles").update({
+        await supabase.from("launchfast_profiles").update({
           plan,
           stripe_customer_id: session.customer as string,
-          stripe_subscription_id: session.subscription as string,
           subscription_status: "active",
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_subscription_id: (session.subscription as string) || null,
+          subscription_period_end: subscriptionPeriodEnd,
         }).eq("id", userId)
         break
       }
 
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as any
-        const userId = subscription.metadata?.userId
-        if (!userId) break
 
-        const priceId = subscription.items.data[0]?.price.id
-        const plan = getPlanFromPriceId(priceId)
-
-        await supabase.from("profiles").update({
-          plan,
-          subscription_status: subscription.status,
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        }).eq("id", userId)
-        break
-      }
-
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as any
-        const userId = subscription.metadata?.userId
-        if (!userId) break
-
-        await supabase.from("profiles").update({
-          plan: "free",
-          subscription_status: "canceled",
-          stripe_subscription_id: null,
-          current_period_end: null,
-        }).eq("id", userId)
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice
+        await supabase.from("launchfast_profiles").update({
+          subscription_status: "past_due",
+        }).eq("stripe_customer_id", invoice.customer as string)
         break
       }
     }
+
+    // Mark as processed
+    await supabase.from("launchfast_webhook_events")
+      .update({ processed: true })
+      .eq("stripe_event_id", event.id)
 
     return NextResponse.json({ received: true })
-  } catch (err: unknown) {
+  } catch (err: any) {
     console.error("Webhook handler error:", err)
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 500 })
-    }
-    return NextResponse.json({ error: "Unknown error occurred" }, { status: 500 })
+    await supabase.from("launchfast_webhook_events")
+      .update({ error: err.message })
+      .eq("stripe_event_id", event.id)
+    return NextResponse.json({ error: "Handler failed" }, { status: 500 })
   }
 }

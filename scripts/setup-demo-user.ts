@@ -56,7 +56,7 @@ async function setupDemoUser() {
     oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
 
     const { error: profileError } = await supabase
-      .from('profiles')
+      .from('launchfast_profiles')
       .upsert({
         id: demoUser.id,
         full_name: 'Demo User',

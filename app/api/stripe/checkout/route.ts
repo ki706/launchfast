@@ -16,9 +16,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Price ID is required" }, { status: 400 })
     }
 
+    // Validate priceId against allowed prices
+    const allowedPrices = [
+      process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
+      process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
+    ]
+
+    if (!allowedPrices.includes(priceId)) {
+      return NextResponse.json({ error: "Invalid Price ID" }, { status: 400 })
+    }
+
     // Get or create Stripe customer
     const { data: profile } = await supabase
-      .from("profiles")
+      .from("launchfast_profiles")
       .select("stripe_customer_id, full_name")
       .eq("id", user.id)
       .single()
@@ -33,24 +43,25 @@ export async function POST(req: NextRequest) {
       })
       customerId = customer.id
       await supabase
-        .from("profiles")
+        .from("launchfast_profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id)
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000"
+    const baseUrl = process.env.NEXT_PUBLIC_URL || "https://launchfast-saas.vercel.app"
+
+    // Retrieve price details to determine mode (payment vs subscription)
+    const price = await stripe.prices.retrieve(priceId)
+    const mode = price.type === 'recurring' ? 'subscription' : 'payment'
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
+      mode: mode,
       success_url: `${baseUrl}/dashboard/billing?success=true`,
       cancel_url: `${baseUrl}/pricing`,
-      metadata: { userId: user.id },
-      subscription_data: {
-        metadata: { userId: user.id },
-      },
+      metadata: { userId: user.id, priceId: priceId },
     })
 
     return NextResponse.json({ url: session.url })

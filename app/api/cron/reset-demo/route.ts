@@ -2,11 +2,13 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 export async function GET(req: Request) {
-  // Verify cron secret if needed, but for now just implementation
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.error("Cron attempt failed: Unauthorized or CRON_SECRET missing");
     return new NextResponse('Unauthorized', { status: 401 });
   }
+
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +24,7 @@ export async function GET(req: Request) {
 
   // 2. Reset the profile
   const { error: profileError } = await supabaseAdmin
-    .from('profiles')
+    .from('launchfast_profiles')
     .update({
       full_name: 'Demo User',
       plan: 'pro',

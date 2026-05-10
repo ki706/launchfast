@@ -9,7 +9,7 @@ export async function POST() {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { data: profile } = await supabase
-      .from("profiles")
+      .from("launchfast_profiles")
       .select("stripe_customer_id")
       .eq("id", user.id)
       .single()
@@ -18,7 +18,7 @@ export async function POST() {
       return NextResponse.json({ error: "No Stripe customer found" }, { status: 400 })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000"
+    const baseUrl = process.env.NEXT_PUBLIC_URL || "https://launchfast-saas.vercel.app"
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
       return_url: `${baseUrl}/dashboard/billing`,

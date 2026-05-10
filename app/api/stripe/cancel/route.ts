@@ -9,7 +9,7 @@ export async function POST() {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { data: profile } = await supabase
-      .from("profiles")
+      .from("launchfast_profiles")
       .select("stripe_subscription_id")
       .eq("id", user.id)
       .single()
@@ -18,12 +18,16 @@ export async function POST() {
       return NextResponse.json({ error: "No subscription found" }, { status: 400 })
     }
 
-    await stripe.subscriptions.cancel(profile.stripe_subscription_id)
-    await supabase.from("profiles").update({
-      plan: "free",
-      subscription_status: "canceled",
-      stripe_subscription_id: null,
-      current_period_end: null,
+    // Update to cancel at the end of the period
+    await stripe.subscriptions.update(profile.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    })
+
+    // We don't update the profile to 'free' immediately.
+    // The subscription is still active until the period ends.
+    // We update the status to 'canceling' (optional) or just wait for the webhook.
+    await supabase.from("launchfast_profiles").update({
+      subscription_status: "canceling",
     }).eq("id", user.id)
 
     return NextResponse.json({ success: true })
@@ -34,3 +38,4 @@ export async function POST() {
     return NextResponse.json({ error: "Unknown error occurred" }, { status: 500 })
   }
 }
+

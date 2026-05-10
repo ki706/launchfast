@@ -1,19 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, ExternalLink, X, CheckCircle, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Loader2, CheckCircle, AlertCircle, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+
 import { Header } from "@/components/dashboard/Header"
 import { useToast } from "@/hooks/use-toast"
 
@@ -23,11 +15,13 @@ const PLAN_LABELS: Record<string, string> = {
   business: "Business",
 }
 
-const fakeInvoices = [
-  { id: "inv_001", date: "Apr 1, 2025", amount: "$9.00", status: "Paid" },
-  { id: "inv_002", date: "Mar 1, 2025", amount: "$9.00", status: "Paid" },
-  { id: "inv_003", date: "Feb 1, 2025", amount: "$9.00", status: "Paid" },
-]
+interface Invoice {
+  id: string
+  date: string
+  amount: string
+  status: string
+  url: string
+}
 
 interface BillingClientProps {
   profile: {
@@ -35,7 +29,7 @@ interface BillingClientProps {
     email?: string | null
     plan: string
     subscription_status: string | null
-    current_period_end: string | null
+    subscription_period_end: string | null
     stripe_subscription_id: string | null
     stripe_customer_id: string | null
   }
@@ -45,14 +39,27 @@ interface BillingClientProps {
 export function BillingClient({ profile, successParam }: BillingClientProps) {
   const { toast } = useToast()
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [cancelLoading, setCancelLoading] = useState(false)
-  const [cancelOpen, setCancelOpen] = useState(false)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const res = await fetch("/api/stripe/invoices")
+        const data = await res.json()
+        if (data.invoices) setInvoices(data.invoices)
+      } catch (err) {
+        console.error("Error fetching invoices:", err)
+      } finally {
+        setInvoicesLoading(false)
+      }
+    }
+    fetchInvoices()
+  }, [])
 
   const plan = profile.plan || "free"
-  const isActive = profile.subscription_status === "active"
-  const renewalDate = profile.current_period_end
-    ? new Date(profile.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  const renewalDate = profile.subscription_period_end
+    ? new Date(profile.subscription_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : null
 
   const isDemoUser = profile.email === "demo@launchfast.com"
@@ -90,45 +97,7 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
     }
   }
 
-  const handlePortal = async () => {
-    if (isDemoUser) {
-      toast({ title: "Demo Mode", description: "Billing portal is disabled for the demo account.", variant: "destructive" })
-      return
-    }
-    setPortalLoading(true)
-    try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" })
-      const { url, error } = await res.json()
-      if (error) throw new Error(error)
-      window.location.href = url
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast({ title: "Error", description: err.message, variant: "destructive" })
-      } else {
-        toast({ title: "Error", description: "An unknown error occurred", variant: "destructive" })
-      }
-      setPortalLoading(false)
-    }
-  }
 
-  const handleCancel = async () => {
-    if (isDemoUser) return
-    setCancelLoading(true)
-    try {
-      const res = await fetch("/api/stripe/cancel", { method: "POST" })
-      const { error } = await res.json()
-      if (error) throw new Error(error)
-      toast({ title: "Subscription canceled", description: "Your plan will remain active until the billing period ends.", variant: "default" } as React.ComponentPropsWithoutRef<typeof import("@/components/ui/toast").Toast>)
-      setCancelOpen(false)
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast({ title: "Error", description: err.message, variant: "destructive" })
-      } else {
-        toast({ title: "Error", description: "An unknown error occurred", variant: "destructive" })
-      }
-    }
-    setCancelLoading(false)
-  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -138,11 +107,11 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
         {/* Demo banner */}
         {isDemoUser ? (
           <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-            👋 <strong>This is a demo subscription</strong> — No real charges will be made. Sign up for a real account to manage your own billing.
+            👋 <strong>This is a demo subscription</strong> - No real charges will be made. Sign up for a real account to manage your own billing.
           </div>
         ) : (
           <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
-            🧪 <strong>Demo mode</strong> — Use card <code className="font-mono bg-blue-100 dark:bg-blue-900 rounded px-1">4242 4242 4242 4242</code> · Any future expiry · Any CVC
+            🧪 <strong>Demo mode</strong> - Use card <code className="font-mono bg-blue-100 dark:bg-blue-900 rounded px-1">4242 4242 4242 4242</code> · Any future expiry · Any CVC
           </div>
         )}
 
@@ -158,11 +127,13 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Current Plan</CardTitle>
-              <Badge variant={isActive ? "success" : "outline"}>
-                {isActive ? "Active" : plan === "free" ? "Free" : "Canceled"}
+              <Badge variant={plan !== "free" ? "success" : "outline"}>
+                {plan !== "free" 
+                  ? (profile.stripe_subscription_id ? "Subscription" : "Lifetime Access") 
+                  : "Free"}
               </Badge>
             </div>
-            <CardDescription>Your current subscription and billing details</CardDescription>
+            <CardDescription>Your current plan and billing details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between py-3 border-b border-border">
@@ -171,51 +142,19 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
             </div>
             {renewalDate && (
               <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-muted-foreground">Next renewal</span>
+                <span className="text-sm text-muted-foreground">Renewal Date</span>
                 <span className="font-semibold">{renewalDate}</span>
               </div>
             )}
             <div className="flex items-center justify-between py-3">
               <span className="text-sm text-muted-foreground">Status</span>
               <span className="font-semibold flex items-center gap-1.5">
-                {isActive
-                  ? <><CheckCircle className="w-4 h-4 text-green-500" /> Active</>
-                  : <><AlertCircle className="w-4 h-4 text-muted-foreground" /> {plan === "free" ? "No subscription" : "Canceled"}</>
+                {plan !== "free"
+                  ? <><CheckCircle className="w-4 h-4 text-green-500" /> {profile.stripe_subscription_id ? "Active" : "Owned"}</>
+                  : <><AlertCircle className="w-4 h-4 text-muted-foreground" /> No plan</>
                 }
               </span>
             </div>
-
-            {plan !== "free" && isActive && (
-              <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="gap-2" onClick={handlePortal} disabled={portalLoading || isDemoUser}>
-                  {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                  Manage subscription
-                </Button>
-                {!isDemoUser && (
-                  <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" className="gap-2 text-destructive hover:text-destructive">
-                        <X className="w-4 h-4" /> Cancel subscription
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Cancel subscription?</DialogTitle>
-                        <DialogDescription>
-                          Your plan will remain active until the end of the current billing period. You can resubscribe anytime.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setCancelOpen(false)}>Keep plan</Button>
-                        <Button variant="destructive" onClick={handleCancel} disabled={cancelLoading}>
-                          {cancelLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cancel subscription"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -230,14 +169,14 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
               {[
                 {
                   name: "Pro",
-                  price: "$9/mo",
+                  price: "$49 one-time",
                   priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro",
                   features: ["Unlimited projects", "Up to 10 team members", "Advanced analytics", "Priority support"],
                   color: "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
                 },
                 {
                   name: "Business",
-                  price: "$29/mo",
+                  price: "$149 one-time",
                   priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "price_business",
                   features: ["Everything in Pro", "Unlimited team members", "White-label", "SLA guarantee"],
                   color: "border-purple-500 bg-purple-50 dark:bg-purple-950/20",
@@ -289,18 +228,46 @@ export function BillingClient({ profile, successParam }: BillingClientProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {fakeInvoices.map((inv) => (
-                    <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                      <td className="py-3 px-2">{inv.date}</td>
-                      <td className="py-3 px-2 font-medium">{inv.amount}</td>
-                      <td className="py-3 px-2">
-                        <Badge variant="success">{inv.status}</Badge>
-                      </td>
-                      <td className="py-3 px-2">
-                        <button className="text-blue-600 hover:underline text-xs font-medium">Download</button>
+                  {invoicesLoading ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-muted-foreground italic">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                        Loading invoices...
                       </td>
                     </tr>
-                  ))}
+                  ) : invoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-muted-foreground italic">
+                        No invoices found.
+                      </td>
+                    </tr>
+                  ) : (
+                    invoices.map((inv) => (
+                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                        <td className="py-3 px-2">{inv.date}</td>
+                        <td className="py-3 px-2 font-medium">{inv.amount}</td>
+                        <td className="py-3 px-2">
+                          <Badge variant={inv.status === "paid" ? "success" : "outline"} className="capitalize">
+                            {inv.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2">
+                          {inv.url ? (
+                            <a 
+                              href={inv.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs font-medium inline-flex items-center gap-1"
+                            >
+                              Download <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">...</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

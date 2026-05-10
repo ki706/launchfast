@@ -2,164 +2,120 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Menu, X, Zap, Moon, Sun, Loader2 } from "lucide-react"
-import { useTheme } from "next-themes"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { Menu, X, Sun, Moon } from "lucide-react"
+import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
-import { handleDemoLogin } from "@/lib/demo-auth"
-import { useToast } from "@/hooks/use-toast"
-
-const navLinks = [
-  { href: "/#features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/login", label: "Login" },
-]
 
 export function Navbar() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [demoLoading, setDemoLoading] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    const handleScroll = () => setScrolled(window.scrollY > 20)
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+    }
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  const onDemoLogin = async () => {
-    setDemoLoading(true)
-    const { error } = await handleDemoLogin()
-    if (error) {
-      toast({
-        title: "Demo login failed",
-        description: "Please try again.",
-        variant: "destructive",
-      })
-      setDemoLoading(false)
-      return
-    }
-    router.push('/dashboard')
-    router.refresh()
-  }
-
   return (
-    <header
+    <header 
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        scrolled
-          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm"
-          : "bg-transparent"
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
+        isScrolled 
+          ? "bg-background/80 backdrop-blur-md border-border py-3" 
+          : "bg-transparent border-transparent py-5"
       )}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            LaunchFast
+      <div className="container px-4 mx-auto flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 overflow-hidden relative">
+            <Image 
+              src="/logo.png" 
+              alt="Logo" 
+              fill 
+              className="object-cover"
+              priority
+            />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-foreground">LaunchFast</span>
+        </Link>
+
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-8">
+          <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+          <Link href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
+          <Link href="https://github.com/miftah-ab/launchfast" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+            <GitHubIcon className="w-4 h-4" /> GitHub
           </Link>
+        </nav>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Desktop right */}
-          <div className="hidden md:flex items-center gap-3">
-            {mounted && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="text-muted-foreground"
-              >
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              </Button>
-            )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-1.5"
-              onClick={onDemoLogin}
-              disabled={demoLoading}
+        <div className="hidden md:flex items-center gap-4">
+          {mounted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-9 h-9 text-muted-foreground hover:text-foreground"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
-              {demoLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Live Demo"}
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
-            <Link href="/signup">
-              <Button size="sm" className="gap-1">
-                Get started free
-              </Button>
-            </Link>
-          </div>
-
-
-          {/* Mobile hamburger */}
-          <div className="md:hidden flex items-center gap-2">
-            {mounted && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="text-muted-foreground"
-              >
-                <Sun className="h-4 w-4 rotate-0 scale-100 dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 dark:rotate-0 dark:scale-100" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
-          </div>
+          )}
+          <Link href="/login" className="text-sm font-medium text-foreground hover:opacity-80 transition-opacity">Log in</Link>
+          <Button size="sm" className="h-9 px-4 text-xs font-bold uppercase tracking-widest" asChild>
+            <Link href="/signup">Get Started</Link>
+          </Button>
         </div>
+
+        {/* Mobile Toggle */}
+        <button 
+          className="md:hidden text-foreground"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="md:hidden bg-background/95 backdrop-blur-md border-b border-border">
-          <div className="px-4 py-4 space-y-1">
-            {navLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="block px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-                onClick={() => setMobileOpen(false)}
-              >
-                {label}
-              </Link>
-            ))}
-            <div className="pt-2 space-y-2">
-              <Button 
-                variant="outline" 
-                className="w-full gap-2"
-                onClick={onDemoLogin}
-                disabled={demoLoading}
-              >
-                {demoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🚀 Live Demo"}
-              </Button>
-              <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full">Get started free</Button>
-              </Link>
-            </div>
-          </div>
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-[60px] z-40 bg-background p-6 animate-in fade-in slide-in-from-top-4">
+          <nav className="flex flex-col gap-6">
+            <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="text-xl font-bold text-foreground">Features</Link>
+            <Link href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-xl font-bold text-foreground">Pricing</Link>
+            <Link href="https://github.com/miftah-ab/launchfast" onClick={() => setMobileMenuOpen(false)} className="text-xl font-bold text-foreground">GitHub</Link>
+            <div className="h-px bg-border my-2" />
+            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="text-xl font-bold text-foreground">Log in</Link>
+            <Button size="lg" className="w-full h-12 text-sm font-bold uppercase tracking-widest" asChild>
+              <Link href="/signup">Get Started</Link>
+            </Button>
+          </nav>
         </div>
       )}
     </header>
+  )
+}
+
+function GitHubIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+      <path d="M9 18c-4.51 2-5-2-7-2" />
+    </svg>
   )
 }

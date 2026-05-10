@@ -1,120 +1,74 @@
 import { Navbar } from "@/components/marketing/Navbar"
 import { PricingCard } from "@/components/marketing/PricingCard"
 import { Footer } from "@/components/marketing/Footer"
+import { Zap } from "lucide-react"
 
-const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    description: "Perfect for side projects and early validation.",
-    features: [
-      "Up to 3 projects",
-      "1 team member",
-      "Basic analytics",
-      "Community support",
-    ],
-    cta: "Get started free",
-    ctaHref: "/signup",
-  },
-  {
-    name: "Pro",
-    price: "$9",
-    description: "For builders shipping real products.",
-    features: [
-      "Unlimited projects",
-      "Up to 10 team members",
-      "Advanced analytics",
-      "Priority email support",
-      "Custom domain",
-    ],
-    cta: "Start Pro",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
-    highlighted: true,
-    badge: "Most Popular",
-  },
-  {
-    name: "Business",
-    price: "$29",
-    description: "For teams that need it all.",
-    features: [
-      "Everything in Pro",
-      "Unlimited team members",
-      "White-label option",
-      "Dedicated support",
-      "SLA guarantee",
-    ],
-    cta: "Start Business",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
-  },
-]
+export const metadata = {
+  title: "Pricing | LaunchFast",
+  description: "Simple, transparent pricing. Pay once, own it forever.",
+}
 
 const faqs = [
   {
-    q: "Can I cancel anytime?",
-    a: "Yes, cancel with one click from your billing page. No questions asked.",
+    q: "Is it really a one-time payment?",
+    a: "Yes. Once you purchase a license, you own it forever. This includes all future updates to the boilerplate foundation.",
   },
   {
-    q: "Do you offer refunds?",
-    a: "We offer a 14-day money-back guarantee on all paid plans.",
+    q: "Do I need to pay for Supabase or Stripe?",
+    a: "LaunchFast uses the free tiers of Supabase, Stripe, and Resend. You only need to pay those providers if you exceed their generous free limits.",
   },
   {
-    q: "What payment methods do you accept?",
-    a: "All major credit and debit cards via Stripe. Apple Pay and Google Pay available where supported.",
+    q: "Can I use it for multiple projects?",
+    a: "The Pro license is for a single project. The Business license allows for unlimited projects and commercial use.",
   },
   {
-    q: "Can I upgrade or downgrade?",
-    a: "Yes, changes take effect immediately and billing is prorated automatically.",
+    q: "Do you offer support?",
+    a: "Yes, Pro and Business users get priority email support. We usually respond within 24 hours.",
   },
 ]
 
-export const metadata = {
-  title: "Pricing — LaunchFast",
-  description: "Simple, transparent pricing. Start free, upgrade when ready.",
-}
-
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main className="pt-28 pb-24 px-4">
+      <main className="flex-1 pt-32 pb-24 px-4">
         <div className="max-w-7xl mx-auto">
-          {/* Demo banner */}
-          <div className="mb-8 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              🧪 <strong>Demo mode</strong> — Use card{" "}
-              <code className="font-mono bg-blue-100 dark:bg-blue-900 rounded px-1.5 py-0.5">4242 4242 4242 4242</code>
-              {" "}· Any future expiry · Any CVC to test checkout
-            </p>
-          </div>
-
           {/* Header */}
-          <div className="text-center mb-16">
-            <h1 className="text-5xl sm:text-6xl font-bold text-foreground mb-4">
-              Simple, transparent pricing
+          <div className="text-center mb-20">
+            <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-foreground mb-6">
+              Simple, transparent <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">one-time pricing.</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-xl mx-auto">
-              Start free. No credit card required. Upgrade when you need more.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Stop paying monthly for your foundation. Buy the boilerplate once, and build as many AI apps as you want.
             </p>
           </div>
 
-          {/* Plans */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center mb-24">
-            {plans.map((plan) => (
-              <PricingCard key={plan.name} {...plan} />
-            ))}
-          </div>
+          {/* Pricing Component (already contains the tiers) */}
+          <PricingCard />
 
           {/* FAQ */}
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-10">Frequently asked questions</h2>
+          <div className="mt-32 max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-foreground mb-4 text-center">Frequently asked questions</h2>
+              <p className="text-muted-foreground text-sm">Everything you need to know about LaunchFast.</p>
+            </div>
+            
             <div className="space-y-4">
               {faqs.map(({ q, a }) => (
-                <div key={q} className="rounded-xl border border-border bg-card p-6">
-                  <h3 className="font-semibold text-foreground mb-2">{q}</h3>
+                <div key={q} className="rounded-xl border border-border bg-muted p-6 hover:bg-card transition-colors">
+                  <h3 className="font-bold text-foreground mb-2">{q}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
                 </div>
               ))}
+            </div>
+          </div>
+          
+          <div className="mt-20 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest">
+              <Zap className="w-3.5 h-3.5" />
+              Trusted by 500+ developers worldwide
             </div>
           </div>
         </div>

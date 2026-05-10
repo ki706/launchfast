@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LaunchFast — Ship your SaaS in days, not months",
+  title: "LaunchFast | Ship your SaaS in days, not months",
   description:
     "LaunchFast gives you auth, billing, and a dashboard out of the box. Focus on your product, not the plumbing.",
   keywords: ["SaaS", "Next.js", "Supabase", "Stripe", "boilerplate", "starter"],

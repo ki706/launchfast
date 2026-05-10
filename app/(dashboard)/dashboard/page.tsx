@@ -6,15 +6,10 @@ import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreditCard, Calendar, ShieldCheck, ArrowUpRight, Activity } from "lucide-react"
+import { Sparkles, BarChart3, Users, Activity, ArrowUpRight, Zap } from "lucide-react"
+import { getPlanFeatures } from "@/lib/stripe/plans"
 
-const fakeActivity = [
-  { id: 1, event: "Logged in from Chrome on macOS", time: "2 minutes ago" },
-  { id: 2, event: "Profile settings updated", time: "1 hour ago" },
-  { id: 3, event: "Password changed successfully", time: "2 days ago" },
-  { id: 4, event: "Account created and verified", time: "5 days ago" },
-  { id: 5, event: "Subscribed to the Free plan", time: "5 days ago" },
-]
+export const dynamic = "force-dynamic"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -22,86 +17,150 @@ export default async function DashboardPage() {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("launchfast_profiles")
     .select("*")
     .eq("id", user.id)
     .single()
 
-  const fullName = profile?.full_name || user.user_metadata?.full_name || "there"
+  const fullName = profile?.full_name || "there"
   const plan = profile?.plan || "free"
-  const memberSince = new Date(user.created_at).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
-  const isVerified = !!user.email_confirmed_at
+  const usedTokens = profile?.ai_tokens_used_this_month || 0
+  const features = getPlanFeatures(plan)
+  
+  const tokenLimit = features.aiTokensPerMonth
+  const usagePercentage = tokenLimit === -1 ? 0 : Math.min(100, (usedTokens / tokenLimit) * 100)
+
+  const isDemoUser = user.email === "demo@launchfast.com"
 
   return (
-    <div className="flex-1 flex flex-col">
-      <Header title="Dashboard" userName={fullName} />
-      <main className="flex-1 p-6 space-y-6">
-        {/* Upgrade banner */}
-        {plan === "free" && (
-          <div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="text-white">
-              <p className="font-semibold">Unlock unlimited projects</p>
-              <p className="text-blue-100 text-sm mt-0.5">
-                Upgrade to Pro for $9/month and get unlimited projects, 10 team members, and priority support.
-              </p>
+    <div className="flex-1 flex flex-col bg-background">
+      <Header title="Overview" userName={fullName} />
+      
+      <main className="flex-1 p-6 space-y-8 max-w-7xl mx-auto w-full">
+        {/* AI Usage Alert for Free users */}
+        {plan === "free" && usagePercentage > 80 && (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 text-amber-500" />
+              <div>
+                <p className="text-sm font-semibold text-amber-500">AI Limit Reaching Soon</p>
+                <p className="text-xs text-amber-500/70">You have used {usagePercentage.toFixed(0)}% of your free AI credits.</p>
+              </div>
             </div>
-            <Link href="/pricing" className="shrink-0">
-              <Button className="bg-white text-blue-600 hover:bg-blue-50 font-semibold gap-1 whitespace-nowrap">
-                Upgrade now <ArrowUpRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            <Button size="sm" variant="outline" className="border-amber-500/20 hover:bg-amber-500/10 text-amber-500 h-8 text-xs font-bold uppercase tracking-wider">
+              Upgrade
+            </Button>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
-            title="Current Plan"
-            value={plan.charAt(0).toUpperCase() + plan.slice(1)}
-            icon={CreditCard}
-            description={plan === "free" ? "Upgrade anytime" : "Billed monthly"}
+            title="Total Revenue"
+            value={isDemoUser ? "$12,482.00" : "$0.00"}
+            icon={BarChart3}
+            description={isDemoUser ? "+12% from last month" : "No active sales yet"}
+            variant="default"
+          />
+          <StatsCard
+            title="Active Users"
+            value={isDemoUser ? "842" : "1"}
+            icon={Users}
+            description={isDemoUser ? "24 online now" : "Just you so far"}
+            variant="default"
+          />
+          <StatsCard
+            title="AI Usage"
+            value={usedTokens.toLocaleString()}
+            icon={Sparkles}
+            description={tokenLimit === -1 ? "Unlimited" : `of ${tokenLimit.toLocaleString()} tokens`}
             variant="blue"
           />
           <StatsCard
-            title="Member Since"
-            value={memberSince}
-            icon={Calendar}
-            description="Thanks for being here"
-            variant="purple"
-          />
-          <StatsCard
-            title="Account Status"
-            value={isVerified ? "Active" : "Unverified"}
-            icon={ShieldCheck}
-            description={isVerified ? "Email verified" : "Check your inbox"}
-            variant={isVerified ? "green" : "default"}
+            title="System Status"
+            value="Healthy"
+            icon={Activity}
+            description="All systems operational"
+            variant="green"
           />
         </div>
 
-        {/* Recent activity */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-500" />
-              Recent Activity
-            </CardTitle>
-            <Badge variant="outline" className="text-xs">Last 7 days</Badge>
-          </CardHeader>
-          <CardContent className="space-y-0 divide-y divide-border">
-            {fakeActivity.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                  <p className="text-sm text-foreground">{item.event}</p>
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0 ml-4">{item.time}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Chart Area */}
+          <Card className="lg:col-span-2 bg-card border-border shadow-none">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Analytics Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[300px] flex items-center justify-center border-t border-border">
+              <div className="text-center space-y-2">
+                <BarChart3 className="w-8 h-8 text-muted mx-auto" />
+                <p className="text-xs text-muted-foreground font-medium tracking-tight">No data available for the selected period</p>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Side Info */}
+          <div className="space-y-4">
+            <Card className="bg-card border-border shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xl font-bold tracking-tight capitalize">{plan}</span>
+                  <Badge className="bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border-none rounded-md px-2 py-0.5 text-[10px] font-bold">
+                    Active
+                  </Badge>
+                </div>
+                
+                {tokenLimit !== -1 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <span>AI Credits</span>
+                      <span>{usagePercentage.toFixed(0)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-accent rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-500" 
+                        style={{ width: `${usagePercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Button className="w-full h-9 text-xs font-bold uppercase tracking-widest bg-white text-black hover:bg-white/90" asChild>
+                  <Link href="/dashboard/billing">Manage Subscription</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-2">
+                <Button variant="ghost" className="justify-between h-9 px-3 text-xs font-medium text-foreground hover:bg-accent" asChild>
+                  <Link href="/dashboard/ai">
+                    <span className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                      Open AI Assistant
+                    </span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#333]" />
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="justify-between h-9 px-3 text-xs font-medium text-foreground hover:bg-accent" asChild>
+                  <Link href="/dashboard/api-keys">
+                    <span className="flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      Manage API Keys
+                    </span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#333]" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
     </div>
   )

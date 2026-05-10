@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Sidebar } from "@/components/dashboard/Sidebar"
+import { CommandPalette } from "@/components/dashboard/CommandPalette"
 
 import { DemoBanner } from "@/components/dashboard/DemoBanner"
 
@@ -17,7 +18,7 @@ export default async function DashboardLayout({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("launchfast_profiles")
     .select("*")
     .eq("id", user.id)
     .single()
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
       <DemoBanner />
       <div className="flex flex-1 bg-background">
         <Sidebar user={userForSidebar} />
+        <CommandPalette />
         <div className="flex-1 flex flex-col min-w-0 lg:pl-0 pt-14 lg:pt-0">
           {children}
         </div>
